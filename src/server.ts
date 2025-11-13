@@ -1,7 +1,9 @@
 import express, { Application } from "express";
 import { createServer } from "http";
 import compression from "compression";
-import { config } from './config';
+import { config } from "./config";
+
+import { DatabaseService } from "./services/database.service";
 
 class TelemedicineServer {
   private app: Application;
@@ -24,12 +26,23 @@ class TelemedicineServer {
     this.app.get("/health", (req, res) => {
       res.json({ status: "healthy", timestamp: new Date().toISOString() });
     });
+
+    this.app.get("/ready", async (req, res) => {
+      const dbHealthy = await DatabaseService.healthCheck();
+
+      if (dbHealthy) {
+        res.json({ status: "ready" });
+      } else {
+        res.status(503).json({ status: "not ready" });
+      }
+    });
   }
 
   private setupErrorHandling() {}
 
   public async start(): Promise<void> {
     try {
+      await DatabaseService.connect();
       this.server = createServer(this.app);
 
       this.server.listen(config.port, () => {
